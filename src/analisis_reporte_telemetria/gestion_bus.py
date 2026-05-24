@@ -112,3 +112,10 @@ def procesar_fechas_y_llaves(df, col_fecha='Fecha', col_Almacen='Almacen',  remi
 def join_unique(x):
     valores = set(str(v) for v in x if pd.notna(v) and str(v).lower() != 'nan')
     return ', '.join(sorted(valores))
+
+
+# Funcion para extraer número de tanque
+def extraer_caracter(df, columna, ):
+    df['Tanque'] = df['Tanque'].str[-1:]
+    df['Tanque'] = df['Tanque'].astype('int64')
+    return df

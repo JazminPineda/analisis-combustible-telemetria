@@ -4,7 +4,8 @@ from .gestion_bus import (
     cargar_datos_gestion_bus,
     limpieza_numerica,
     procesar_fechas_y_llaves,
-    join_unique
+    join_unique,
+    extraer_caracter
 )
 __all__ = [
     'read_xls_file2',
@@ -12,6 +13,7 @@ __all__ = [
     'cargar_datos_gestion_bus',
     'limpieza_numerica',
     'procesar_fechas_y_llaves',
-    'join_unique'
+    'join_unique',
+    'extraer_caracter'
 
 ]
