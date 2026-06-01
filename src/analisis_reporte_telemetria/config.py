@@ -7,12 +7,16 @@ Centraliza todas las constantes, paths y configuraciones. Esto evita "números m
 from pathlib import Path
 
 # --- Rutas Base ---
-# Usar pathlib es más robusto y portable que strings crudos.
-# Se asume que la carpeta 'data' está en la raíz del proyecto.
-BASE_DATA_PATH = Path("..\data")
+# Usar Path(__file__) para que las rutas sean relativas al archivo de configuración
+BASE_DIR = Path(__file__).parent.parent.parent
+BASE_DATA_PATH = BASE_DIR / "data"
 
 # --- Configuraciones Específicas por Módulo ---
 GESTION_BUS_PATH = BASE_DATA_PATH / "gestion-bus"
+FORM_DATA_PATH = BASE_DATA_PATH / "formulario"
+OUTPUT_BASE_PATH = BASE_DIR / "outputs"
+CONCILIACION_OUTPUT_PATH = OUTPUT_BASE_PATH / "conciliacion"
+FORM_FILE_NAME = "Ingresos de combustible y Trasvases(1-18) (1) (1).xlsx"
 
 # --- Constantes de Datos ---
 COMMON_NULL_VALUES = ["-", " ", "N/A", "nd", "n/d", "None", "", "nan", "NaN", "unnamed"]
