@@ -83,6 +83,39 @@ def _safe_numeric(series: pd.Series) -> pd.Series:
 
     return series.apply(parse_value)
 
+def definir_categoria(valor):
+    if valor >= 1:
+        return 'Entrega'  # O 'Entrega' según tu signo
+    elif valor <= -1:
+        return 'Recarga' # O 'Recarga' según tu signo
+    else:
+        # Valores entre -1 y 1 se consideran sin movimiento significativo
+        return 'Sin Movimiento'
+
+def limpiar_numero(valor) -> float:
+    """
+    Convierte strings con formato europeo a float.
+    Ejemplos: "14.000,00" -> 14000.00 | "1.234" -> 1234.0
+    
+    Args:
+        valor: String, int, float o None
+    
+    Returns:
+        float: Número limpio o 0.0 si no se puede convertir
+    """
+    if pd.isna(valor) or valor == "":
+        return 0.0
+    
+    if isinstance(valor, (int, float)):
+        return float(valor)
+    
+    try:
+        # Eliminar puntos (separador de miles) y reemplazar coma por punto decimal
+        s = str(valor).strip().replace(',', '')
+        return float(s)
+    except (ValueError, AttributeError):
+        print(f"⚠️ Advertencia: No se pudo convertir '{valor}' a número")
+        return 0.0
 
 def limpiar_telemetria(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -119,19 +152,42 @@ def limpiar_telemetria(df: pd.DataFrame) -> pd.DataFrame:
     elif "Fecha" in df.columns:
         df = df.sort_values(["Fecha"]).reset_index(drop=True)
 
-    # Usar Volumen TC como referencia ajustada para el cálculo de cambios de volumen.
-    if "Volumen TC" in df.columns and df["Volumen TC"].notna().any():
-        df["Volumen_Referencia"] = df["Volumen TC"]
-    elif "Volumen" in df.columns:
-        df["Volumen_Referencia"] = df["Volumen"]
-    else:
-        df["Volumen_Referencia"] = np.nan
+    df['Volumen'] = df['Volumen'].apply(limpiar_numero)
+    df['Volumen TC'] = df['Volumen TC'].apply(limpiar_numero)
+    df['Volumen de Agua'] = df['Volumen de Agua'].apply(limpiar_numero)
+    df['Merma'] = df['Merma'].apply(limpiar_numero)
+    df['Altura de Combustible'] = df['Altura de Combustible'].apply(limpiar_numero)
 
-    if "Volumen TC" in df.columns and "Merma" in df.columns:
-        df["volumen_tc_merma"] = df["Volumen TC"].fillna(0) + df["Merma"].fillna(0)
-        df["capacidad_excedida"] = df["volumen_tc_merma"] > config.max_capacity_litros
-    else:
-        df["capacidad_excedida"] = False
+    df = df.sort_values(["Sitio", "Tanque", "Fecha"])
+    # Usar Volumen TC como reference ajustada para el cálculo de cambios de volumen.
+
+    df['Variacion Volumen'] = df['Variacion Volumen'] = (
+        df
+        .groupby(['Sitio', 'Tanque'])['Volumen']
+        .diff()
+    )
+
+
+    df['Categoria'] = df['Variacion Volumen'].apply(definir_categoria)
+
+    df['Variacion Volumen TC'] = df['Variacion Volumen TC'] = (
+        df
+        .groupby(['Sitio', 'Tanque'])['Volumen TC']
+        .diff()
+    )
+
+    df['Variacion Agua'] =  (
+        df
+        .groupby(['Sitio', 'Tanque'])['Volumen de Agua']
+        .diff()
+    )
+
+    df['Variacion Temperat'] =  (
+        df
+        .groupby(['Sitio', 'Tanque'])['Temperatura']
+        .diff()
+    )
+
 
     # Detectar irregularidades básicas de timestamp
     df["fecha_valida"] = df["Fecha"].notna()
@@ -148,19 +204,7 @@ def limpiar_telemetria(df: pd.DataFrame) -> pd.DataFrame:
         df["retraso_actualizacion_s"] = np.nan
         df["retraso_actualizacion_critico"] = False
 
-    # Duración entre registros por tanque
-    if "Tanque" in df.columns and "Fecha" in df.columns:
-        df["diff_fecha_s"] = df.groupby("Tanque")["Fecha"].diff().dt.total_seconds()
-        df["gap_grande"] = df["diff_fecha_s"] > 3600 * config.retraso_critico_horas
-        df["diff_volumen"] = df.groupby("Tanque")["Volumen_Referencia"].diff()
-    elif "Fecha" in df.columns:
-        df["diff_fecha_s"] = df["Fecha"].diff().dt.total_seconds()
-        df["gap_grande"] = df["diff_fecha_s"] > 3600 * config.retraso_critico_horas
-        df["diff_volumen"] = df["Volumen_Referencia"].diff()
-    else:
-        df["diff_fecha_s"] = np.nan
-        df["gap_grande"] = False
-        df["diff_volumen"] = np.nan
+
 
     # Detectar retrodatados si el registro está fuera de orden con respecto al registro previo
     if "Tanque" in df.columns and "Fecha" in df.columns:
@@ -172,16 +216,10 @@ def limpiar_telemetria(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _calcular_evaporacion_esperada(df: pd.DataFrame) -> pd.Series:
-    """Estima una tasa de variación esperada de volumen a partir de temperatura y merma."""
-    if "Merma" in df.columns and df["Merma"].notna().any():
-        expected = df["Merma"].fillna(0)
-    elif "Temperatura" in df.columns and df["Temperatura"].notna().any():
-        expected = 0.001 * df["Temperatura"].fillna(df["Temperatura"].median())
-    else:
-        expected = pd.Series(0.0, index=df.index)
 
-    return expected
+
+
+
 
 
 def analizar_indicadores_anomalias(df: pd.DataFrame, tanque_id: Optional[str] = None) -> Dict[str, Any]:
@@ -339,7 +377,7 @@ def generar_reporte_ejecutivo(df: pd.DataFrame) -> Dict[str, Any]:
     }
 
     # Guardar reporte ejecutivo
-    pd.DataFrame([reporte]).to_json(OUTPUTS_PATH / "reporte_ejecutivo.json", orient="records", indent=2)
+    #pd.DataFrame([reporte]).to_json(OUTPUTS_PATH / "reporte_ejecutivo.json", orient="records", indent=2)
     pd.DataFrame(resumen_tanques).to_csv(OUTPUTS_PATH / "resumen_ejecutivo_tanques.csv", index=False)
 
     return reporte
@@ -581,8 +619,8 @@ def _read_spreadsheetml_xml(path: str) -> pd.DataFrame:
 
     mapping = {
         "Fecha Actualización": "Fecha Actualizacion",
-        "Combustible": "Categoria",
-        "Volumen de Agua": "Altura de Agua",
+        "Combustible": "Combustible",
+        "Volumen de Agua": "Volumen de Agua",
         "Volumen TC": "Volumen TC",
         "Altura de Combustible": "Altura de Combustible",
         "Altura de Agua": "Altura de Agua",
@@ -623,27 +661,28 @@ def cargar_datos_excel(ruta: Optional[str] = None) -> pd.DataFrame:
 def main() -> None:
     df = cargar_datos_excel()
     df_clean = limpiar_telemetria(df)
-    validacion = validar_timestamps(df_clean)
-    reporte, df_clean = generar_reporte_anomalias(df_clean)  # Esto agrega clasificaciones a df_clean
-    indicadores = analizar_indicadores_anomalias(df_clean)
-    ejecutivo = generar_reporte_ejecutivo(df_clean)
+    df_clean.to_excel(OUTPUTS_PATH / "telemetria_limpa.xlsx", index=False)
+    #validacion = validar_timestamps(df_clean)
+    #reporte, df_clean = generar_reporte_anomalias(df_clean)  # Esto agrega clasificaciones a df_clean
+    # indicadores = analizar_indicadores_anomalias(df_clean)
+    # ejecutivo = generar_reporte_ejecutivo(df_clean)
 
-    print("Resumen de calidad de datos:")
-    print(reporte["reporte"])
-    print("\nIndicadores de anomalías identificados:")
-    for categoria, signals in indicadores.items():
-        print(f"\n{categoria.upper()}:")
-        for signal, detected in signals.items():
-            status = "✓" if detected else "✗"
-            print(f"  {status} {signal.replace('_', ' ').title()}")
+    # print("Resumen de calidad de datos:")
+    # print(reporte["reporte"])
+    # print("\nIndicadores de anomalías identificados:")
+    # for categoria, signals in indicadores.items():
+    #     print(f"\n{categoria.upper()}:")
+    #     for signal, detected in signals.items():
+    #         status = "✓" if detected else "✗"
+    #         print(f"  {status} {signal.replace('_', ' ').title()}")
 
-    print(f"\nArchivos generados en: {reporte['ruta_salida']}")
-    print("Reportes ejecutivos: reporte_ejecutivo.json, resumen_ejecutivo_tanques.csv")
-    print("Documentación: docs/Analisis_Telemetria_Combustibles.md")
+    # print(f"\nArchivos generados en: {reporte['ruta_salida']}")
+    # print("Reportes ejecutivos: reporte_ejecutivo.json, resumen_ejecutivo_tanques.csv")
+    # print("Documentación: docs/Analisis_Telemetria_Combustibles.md")
 
-    df_clean.to_csv(OUTPUTS_PATH / "telemetria_limpa.csv", index=False)
-    validacion.to_csv(OUTPUTS_PATH / "validacion_timestamps.csv", index=False)
-    pd.DataFrame([indicadores]).to_csv(OUTPUTS_PATH / "indicadores_anomalias.csv", index=False)
+    # #df_clean.to_csv(OUTPUTS_PATH / "telemetria_limpa.csv", index=False)
+    # validacion.to_csv(OUTPUTS_PATH / "validacion_timestamps.csv", index=False)
+    # pd.DataFrame([indicadores]).to_csv(OUTPUTS_PATH / "indicadores_anomalias.csv", index=False)
 
 
 if __name__ == "__main__":
