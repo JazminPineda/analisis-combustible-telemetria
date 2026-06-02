@@ -161,6 +161,8 @@ def limpiar_telemetria(df: pd.DataFrame) -> pd.DataFrame:
     df = df.sort_values(["Sitio", "Tanque", "Fecha"])
     # Usar Volumen TC como reference ajustada para el cálculo de cambios de volumen.
 
+    df["%Var Volumen"] = (df["Volumen TC"] - df["Volumen"]) / df["Volumen"]
+
     df['Variacion Volumen'] = df['Variacion Volumen'] = (
         df
         .groupby(['Sitio', 'Tanque'])['Volumen']
@@ -661,7 +663,8 @@ def cargar_datos_excel(ruta: Optional[str] = None) -> pd.DataFrame:
 def main() -> None:
     df = cargar_datos_excel()
     df_clean = limpiar_telemetria(df)
-    df_clean.to_excel(OUTPUTS_PATH / "telemetria_limpa.xlsx", index=False)
+    df_clean.to_excel(OUTPUTS_PATH / "telemetria_limpia.xlsx", index=False)
+    print("Se ha generado el archivo.")
     #validacion = validar_timestamps(df_clean)
     #reporte, df_clean = generar_reporte_anomalias(df_clean)  # Esto agrega clasificaciones a df_clean
     # indicadores = analizar_indicadores_anomalias(df_clean)
