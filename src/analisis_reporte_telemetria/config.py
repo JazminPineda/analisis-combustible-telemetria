@@ -26,7 +26,7 @@ HEADERS_FIJOS2 = [
     'Nro. Mov', 'Fecha', 'Codigo', 'Tipo', 'Ingreso', 'Sociedad', 'Almacen',
     'Tanque', 'Surtidor', 'Unidad', 'Kms. Carga', 'Kms. Odometro',
     'Kms. Recorrido', 'Litros', 'Precio Litro', 'Nro. Solicitud',
-    'Fecha Solicitud', 'NroPedido', 'Estado Solicitud',
+    'Fecha Solicitud', 'Nro. Pedido', 'Estado Solicitud',
     'LitrosSolicitado', 'Litros Entregado', 'Nro. Remito', 'Fecha Remito',
     'Importe Remito', 'EuroDiesel', 'Nro. Precinto',
     'Nro. Precinto Anterior', 'Tiene Precinto Anterior',

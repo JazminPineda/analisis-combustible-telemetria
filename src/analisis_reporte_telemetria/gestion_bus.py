@@ -58,32 +58,32 @@ def cargar_datos_gestion_bus(ruta_datos: Path) -> pd.DataFrame:
     return df_combustible_movimientos
 
 
-def limpieza_numerica(df, pedido='NroPedido'):
-    # Creamos una copia para no afectar el dataframe original
-    df = df.copy()
+# def limpieza_numerica(df, pedido='NroPedido'):
+#     # Creamos una copia para no afectar el dataframe original
+#     df = df.copy()
     
-    # Definimos la lista de nulos comunes
-    common_nulls = ["-", " ", "N/A", "nd", "n/d", "None", "", "nan", "NaN", "unnamed"]
+#     # Definimos la lista de nulos comunes
+#     common_nulls = ["-", " ", "N/A", "nd", "n/d", "None", "", "nan", "NaN", "unnamed"]
     
-    if pedido in df.columns:
-        # 1. Convertir a string y limpiar espacios básicos
-        df[pedido] = df[pedido].astype(str).str.strip()
+#     if pedido in df.columns:
+#         # 1. Convertir a string y limpiar espacios básicos
+#         df[pedido] = df[pedido].astype(str).str.strip()
         
-        # 2. Reemplazar nulos conocidos por NaN real
-        df[pedido] = df[pedido].replace(common_nulls, np.nan)
+#         # 2. Reemplazar nulos conocidos por NaN real
+#         df[pedido] = df[pedido].replace(common_nulls, np.nan)
         
-        # 3. EXTRAER SOLO NÚMEROS (Regex: [^0-9] significa "todo lo que NO sea un número")
-        # Reemplazamos cualquier carácter no numérico por un string vacío
-        df[pedido] = df[pedido].str.replace(r'[^0-9]', '', regex=True)
+#         # 3. EXTRAER SOLO NÚMEROS (Regex: [^0-9] significa "todo lo que NO sea un número")
+#         # Reemplazamos cualquier carácter no numérico por un string vacío
+#         df[pedido] = df[pedido].str.replace(r'[^0-9]', '', regex=True)
         
-        # 4. Manejo de vacíos: Si después de limpiar quedó vacío o era NaN, poner "0"
-        # Primero reemplazamos los strings vacíos que dejó la limpieza de letras
-        df[pedido] = df[pedido].replace('', np.nan)
+#         # 4. Manejo de vacíos: Si después de limpiar quedó vacío o era NaN, poner "0"
+#         # Primero reemplazamos los strings vacíos que dejó la limpieza de letras
+#         df[pedido] = df[pedido].replace('', np.nan)
         
-        # Finalmente, llenamos todos los NaN con "0"
-        df[pedido] = df[pedido].fillna("0")
+#         # Finalmente, llenamos todos los NaN con "0"
+#         df[pedido] = df[pedido].fillna("0")
     
-    return df
+#     return df
 
 
 def procesar_fechas_y_llaves(df, col_fecha='Fecha', col_Almacen='Almacen',  remito= 'Fecha Remito'):

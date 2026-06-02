@@ -23,9 +23,18 @@ class FuelProcessor:
     def obtener_datos_procesados(self) -> pd.DataFrame:
         """Flujo principal para obtener y limpiar los datos de Gestión Bus."""
         df_raw = self.reader.cargar_datos()
-        df_clean = self.cleaner.convertir_fechas_y_crear_llaves(df_raw)
+        #df_clean = self.cleaner.convertir_fechas_y_crear_llaves(df_raw)
         # Aplicar otras limpiezas si es necesario
-        df_clean = self.cleaner.limpiar_columna_numerica(df_clean, 'NroPedido')
+        # df_clean = self.cleaner.limpiar_columna_numerica(df_raw, 'NroPedido')
+        df_clean = df_raw.copy() # Por ahora, sin limpiezas adicionales para no afectar el flujo principal
+            # 1. Conversión de fecha vectorizada (toda la columna a la vez)
+        df_clean['Date'] = pd.to_datetime(df_clean['Fecha'], dayfirst=True, errors='coerce').dt.normalize()
+        # 2. Año-Mes vectorizado
+        df_clean['Año_mes'] = df_clean['Date'].dt.to_period('M').astype(str)
+        df_clean['SemanaRemito'] = df_clean['Date'].dt.isocalendar().week
+        df_clean['unico_mes'] = df_clean['Almacen'].astype(str) + '_' + df_clean['Año_mes']
+        df_clean['unico_mes_Almacen'] = df_clean['Almacen'].astype(str) + '_' + df_clean['Año_mes']
+
         return df_clean
 
     def filtrar_por_almacen(self, df: pd.DataFrame, almacen: str) -> pd.DataFrame:
@@ -75,17 +84,18 @@ class FuelProcessor:
     def agrupar_entregas(self, df_filtrado: pd.DataFrame) -> pd.DataFrame:
         """Agrupa los datos de entregas de combustible."""
         df_entregas = df_filtrado[df_filtrado['Tipo'] == "Entrega de Combustible"].copy()
+        df_entregas = self.cleaner.convertir_fechas_y_crear_llaves(df_entregas, 'Fecha', 'Almacen', 'Fecha Remito')
         
         df_agrupado = df_entregas.groupby(
             ['Año_mes', 'unico_mes', 'unico_mes_Almacen',
-             'Sociedad', 'Tipo', 'NroPedido', 'Almacen', 'Date_fx']
+             'Sociedad', 'Tipo', 'Nro Pedido', 'Almacen', 'Date_fx']
         ).agg(
             Litros_GB=('Litros', 'sum'),
             Cantidad_veces=('Litros', 'count'),
-            Remito=('Nro. Remito', join_unique), # revisar si es correcto usar 'Nro. Remito' o 'NroRemito' según el header final
+            Remito=('Nro Remito', join_unique), # revisar si es correcto usar 'Nro. Remito' o 'NroRemito' según el header final
             L_Entregados=('Litros Entregado', 'max'),
             L_Solicitados=('LitrosSolicitado', 'max'),
-            Nro_Presinto=('Nro. Precinto', join_unique), # revisar si es correcto usar 'Nro. Precinto' o 'NroPrecinto' según el header final
+            Nro_Presinto=('Nro Precinto', join_unique), # revisar si es correcto usar 'Nro. Precinto' o 'NroPrecinto' según el header final
             Usuario=('Usuario', join_unique),
         ).reset_index()
         
